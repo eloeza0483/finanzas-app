@@ -1,4 +1,4 @@
-import { CalendarMonthResponse } from '../interfaces/finance.interfaces';
+import type { CalendarMonthResponse } from '../interfaces/finance.interfaces';
 
 // =============================================================================
 // mocks/calendarMock.ts

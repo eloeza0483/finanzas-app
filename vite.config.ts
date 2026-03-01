@@ -33,6 +33,9 @@ export default defineConfig({
       // Estrategia básica para cachear recursos y funcionar offline (cascarón UI)
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+      },
+      devOptions: {
+        enabled: true
       }
     })
   ],
