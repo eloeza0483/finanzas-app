@@ -1,0 +1,13 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno — ¡NUNCA subir a Git!
+.env
+.env.local
+
+# Build de TypeScript
+dist/
+
+# Prisma: el cliente generado no necesita estar en Git
+# (se regenera con `prisma generate`)
+node_modules/.prisma/

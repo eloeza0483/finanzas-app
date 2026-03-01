@@ -1,0 +1,19 @@
+/* Importamos la fuente Inter de Google Fonts para una tipografía premium */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+/* ============================================================
+   Las 3 directivas de Tailwind — OBLIGATORIAS en este orden.
+   @tailwind base      → Reset CSS global (como Normalize.css)
+   @tailwind components → Clases de componentes (reutilizables)
+   @tailwind utilities  → Las clases utilitarias (flex, p-4, text-xl, etc.)
+   ============================================================ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Reset mínimo: el body ocupa toda la pantalla sin margen */
+@layer base {
+  body {
+    @apply m-0 min-h-screen bg-slate-950 text-slate-100 font-sans;
+  }
+}

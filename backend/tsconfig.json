@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    // Target: ES2020 para usar features modernas en Node.js 18+
+    "target": "ES2020",
+    // Module: CommonJS porque Node.js usa require() por defecto
+    "module": "commonjs",
+    // Activa todas las validaciones estrictas de TypeScript
+    // Equivale a: strictNullChecks, noImplicitAny, etc. — todo encendido
+    "strict": true,
+    // Permite importar módulos JSON directamente
+    "resolveJsonModule": true,
+    // Permite importar módulos CommonJS con `import` en lugar de `require()`
+    "esModuleInterop": true,
+    // Carpeta de salida del build compilado
+    "outDir": "./dist",
+    // Carpeta raíz del código fuente
+    "rootDir": "./src",
+    // Genera source maps para debugging (mapea el JS compilado al TS original)
+    "sourceMap": true,
+    // Omite chequeo de tipos en node_modules para acelerar la compilación
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

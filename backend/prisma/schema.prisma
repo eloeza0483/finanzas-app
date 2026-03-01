@@ -1,0 +1,206 @@
+// =============================================================================
+// schema.prisma — Organizacion Hogar
+// ORM: Prisma | Base de datos: PostgreSQL
+// =============================================================================
+// En Laravel, este archivo equivale a tus migrations + models combinados.
+// Prisma lee este archivo y genera:
+//   1. Las tablas en tu BD (via `prisma migrate dev`)
+//   2. Un cliente TypeScript con autocompletado (via `prisma generate`)
+// =============================================================================
+
+// --- CONFIGURACIÓN DEL GENERADOR ---
+// Prisma genera el "Prisma Client": el objeto que usarás en tu código Node.js
+// para hacer queries. Es como el Query Builder / Eloquent de Laravel.
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --- CONFIGURACIÓN DE LA BASE DE DATOS ---
+// La URL de conexión se lee desde el archivo .env para no exponer credenciales.
+// Formato: postgresql://USUARIO:PASSWORD@HOST:PUERTO/NOMBRE_BD
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =============================================================================
+// ENUMERADORES (Enums)
+// =============================================================================
+// Los Enums son como una lista cerrada de opciones válidas.
+// En la BD se guardan como strings, pero Prisma valida que solo uses valores permitidos.
+// Piénsalos como los `enum` de PHP o las columnas con `->in([...])` en Laravel.
+
+// Define si un movimiento es un ingreso o un gasto.
+enum TransactionType {
+  INCOME  // Ingreso  (ej. quincena, bono)
+  EXPENSE // Gasto    (ej. renta, despensa)
+}
+
+// Define con qué frecuencia se repite una transacción recurrente.
+enum RecurrencePattern {
+  WEEKLY    // Cada semana     (ej. tianguis)
+  BIWEEKLY  // Cada dos semanas (ej. quincena)
+  MONTHLY   // Mensual         (ej. renta, Netflix)
+  CUSTOM    // Personalizado   (para casos especiales futuros)
+}
+
+// =============================================================================
+// MODELO: User
+// =============================================================================
+// Representa a un miembro de la pareja (ej. Ernesto, Monse).
+// En Laravel, este sería tu modelo `User` con su tabla `users`.
+// La clave aquí es que un User puede pertenecer a UN solo FamilyGroup.
+model User {
+  // `@id` = clave primaria. `@default(cuid())` genera un ID único.
+  // Usamos CUID en lugar de auto-incremento porque es más seguro para APIs públicas
+  // (no revela cuántos usuarios tienes: /users/1, /users/2, etc.).
+  id        String   @id @default(cuid())
+
+  // Nombre del miembro (ej. "Ernesto", "Monse")
+  name      String
+
+  // Email único para el login. `@unique` crea un índice único en la BD.
+  email     String   @unique
+
+  // Hash de la contraseña. NUNCA guardes contraseñas en texto plano.
+  password  String
+
+  // Timestamps automáticos — equivalente a $table->timestamps() en Laravel.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // --- RELACIONES ---
+  // Un User pertenece a un FamilyGroup (puede ser null si aún no se ha unido).
+  // `familyGroupId` es la llave foránea (Foreign Key).
+  familyGroupId String?
+  // `@relation` le dice a Prisma cómo conectar las tablas.
+  // fields: el campo de ESTA tabla | references: el campo de la otra tabla.
+  familyGroup   FamilyGroup? @relation(fields: [familyGroupId], references: [id])
+
+  // Un User puede registrar muchas Transactions. (Relación 1 a muchos)
+  transactions  Transaction[]
+
+  // Nombre de la tabla en la BD. Buena práctica: plural y minúsculas.
+  @@map("users")
+}
+
+// =============================================================================
+// MODELO: FamilyGroup
+// =============================================================================
+// El "espacio compartido" de la pareja. Todas las finanzas están bajo este grupo.
+// Analogía Laravel: como un "Team" en Laravel Jetstream — un contenedor
+// que agrupa usuarios y sus datos.
+model FamilyGroup {
+  id        String   @id @default(cuid())
+
+  // Nombre del grupo familiar (ej. "Casa Ernesto & Monse")
+  name      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // --- RELACIONES ---
+  // Un FamilyGroup tiene muchos Users (los miembros de la pareja).
+  members      User[]
+
+  // Un FamilyGroup tiene muchas Categories y Transactions.
+  // Guardamos todo bajo el grupo para que ambos miembros puedan verlo.
+  categories   Category[]
+  transactions Transaction[]
+
+  @@map("family_groups")
+}
+
+// =============================================================================
+// MODELO: Category
+// =============================================================================
+// Agrupa las transacciones por tipo (ej. Servicios, Mascotas, Despensa).
+// Equivale a una tabla de categorías en cualquier app de finanzas.
+// Pertenece a un FamilyGroup para que cada pareja pueda tener sus propias categorías.
+model Category {
+  id        String   @id @default(cuid())
+
+  // Nombre de la categoría (ej. "Despensa", "Mascotas", "Servicios")
+  name      String
+
+  // Emoji o ícono opcional para la UI (ej. "🐾", "💡", "🛒")
+  // Esto es un detalle de UX que nos dará mucho valor visual en el frontend.
+  icon      String?
+
+  // Color en formato HEX para mostrar en gráficas (ej. "#FF6384")
+  color     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // --- RELACIONES ---
+  // Cada Category pertenece a un FamilyGroup.
+  familyGroupId String
+  familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id])
+
+  // Una Category puede tener muchas Transactions.
+  transactions  Transaction[]
+
+  @@map("categories")
+}
+
+// =============================================================================
+// MODELO: Transaction
+// =============================================================================
+// La tabla CENTRAL del sistema. Cada gasto o ingreso es una Transaction.
+// En Laravel, sería tu modelo principal con más relaciones y scopes.
+model Transaction {
+  id        String   @id @default(cuid())
+
+  // Título descriptivo (ej. "Renta de Febrero", "Quincena Ernesto")
+  title     String
+
+  // Monto del movimiento.
+  // Usamos `Decimal` en lugar de `Float` porque Float tiene errores de redondeo
+  // (ej. 0.1 + 0.2 = 0.30000000000000004). Para dinero, SIEMPRE usar Decimal.
+  // `@db.Decimal(12, 2)` = hasta 12 dígitos en total, con 2 decimales.
+  amount    Decimal  @db.Decimal(12, 2)
+
+  // Usa nuestro Enum: INCOME o EXPENSE.
+  type      TransactionType
+
+  // Fecha en que ocurre el movimiento (no confundir con createdAt).
+  // Útil para registrar gastos del pasado o programar ingresos futuros.
+  date      DateTime
+
+  // Nota u observación adicional (ej. "Se pagó con tarjeta de Monse")
+  notes     String?
+
+  // ¿Es un pago recurrente? (ej. la renta que se paga cada mes)
+  isRecurring       Boolean          @default(false)
+
+  // Solo tiene valor si isRecurring = true. Define cada cuánto se repite.
+  recurrencePattern RecurrencePattern?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // --- RELACIONES ---
+  // Quién registró esta transacción (ej. "Ernesto registró la renta").
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+
+  // A qué grupo familiar pertenece (para que Monse también la pueda ver).
+  familyGroupId String
+  familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id])
+
+  // A qué categoría pertenece (opcional, ya que podría no estar categorizada aún).
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+
+  // Índices para mejorar la velocidad de las consultas más comunes.
+  // En Laravel, esto sería $table->index(['user_id', 'date']) en la migration.
+  // Le decimos a PostgreSQL: "prepárate para filtrar mucho por estos campos".
+  @@index([userId])
+  @@index([familyGroupId])
+  @@index([date])
+  @@index([type])
+
+  @@map("transactions")
+}
